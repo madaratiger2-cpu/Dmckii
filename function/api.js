@@ -10,7 +10,7 @@ export default async (req, context) => {
         "Surrogate-Control": "no-store"
     };
 
-    const ADMIN_PASSWORD = "MySecretPassword123";
+    const ADMIN_PASSWORD = "Harshdeep";
 
     try {
         const store = getStore("lua_scripts");
