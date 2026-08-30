@@ -4,6 +4,11 @@
   command = "npm install"
 
 [[redirects]]
+  from = "/raw/*"
+  to = "/.netlify/functions/api?raw=:splat"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
