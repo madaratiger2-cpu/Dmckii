@@ -39,7 +39,7 @@ export default async (req) => {
         }
 
         const adminPass = req.headers.get("x-admin-password");
-        if (adminPass !== "Universe") {
+        if (adminPass !== "MrMadara") {
             return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
         }
 
