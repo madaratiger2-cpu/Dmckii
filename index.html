@@ -21,20 +21,13 @@
 <body class="min-h-screen p-4 md:p-8 font-sans">
     <nav class="max-w-5xl mx-auto flex justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700">
         <h1 class="text-2xl font-bold text-cyan-400"><i class="fa-solid fa-vault mr-2"></i>Lua Vault Pro</h1>
-        <button onclick="logout()" id="logoutBtn" class="hidden text-red-400 hover:text-red-300 transition"><i class="fa-solid fa-right-from-bracket mr-1"></i> Logout</button>
     </nav>
 
     <div id="toast" class="fixed top-5 right-5 text-white px-6 py-3 rounded shadow-lg transform transition-transform duration-300 translate-x-full z-50 flex items-center">
         <i class="fa-solid fa-circle-check mr-2" id="toastIcon"></i> <span id="toastMsg"></span>
     </div>
 
-    <div id="loginView" class="max-w-md mx-auto glass-panel p-8 rounded-xl shadow-xl mt-20">
-        <h2 class="text-2xl font-bold mb-6 text-center text-white"><i class="fa-solid fa-lock text-cyan-400 mr-2"></i>Admin Access</h2>
-        <input type="password" id="pwdInput" placeholder="Enter Master Password" class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-3 mb-4 focus:outline-none focus:border-cyan-400 transition" onkeypress="if(event.key === 'Enter') login(false)">
-        <button onclick="login(false)" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-lg font-bold transition shadow-lg shadow-cyan-500/30">Unlock Vault</button>
-    </div>
-
-    <div id="dashboardView" class="max-w-5xl mx-auto space-y-6 hidden">
+    <div id="dashboardView" class="max-w-5xl mx-auto space-y-6">
         <div class="glass-panel p-6 rounded-xl shadow-xl">
             <h2 class="text-xl font-semibold mb-4 text-white"><i class="fa-solid fa-cloud-arrow-up text-cyan-400 mr-2"></i>Upload Script</h2>
             <div class="flex flex-col md:flex-row gap-4 items-center">
@@ -103,8 +96,7 @@
             setTimeout(() => toast.classList.add('translate-x-full'), 2500);
         }
 
-        async function authFetch(url, options = {}) {
-            const pwd = localStorage.getItem('vault_admin_pwd');
+        async function apiFetch(url, options = {}) {
             const targetUrl = new URL(url, window.location.origin);
             targetUrl.searchParams.append('_t', Date.now());
             
@@ -112,54 +104,16 @@
                 ...options,
                 headers: {
                     ...options.headers,
-                    'x-admin-password': pwd,
                     'Cache-Control': 'no-cache, no-store',
                     'Pragma': 'no-cache'
                 },
                 cache: 'no-store'
             });
 
-            if (res.status === 401) {
-                logout();
-                throw new Error("Invalid Password");
-            }
-            if (res.status === 404) {
-                throw new Error("API not deployed");
-            }
             if (!res.ok) {
                 throw new Error(`Server Error ${res.status}`);
             }
             return res;
-        }
-
-        async function login(isAutoLogin) {
-            let pwd;
-            if (isAutoLogin) {
-                pwd = localStorage.getItem('vault_admin_pwd');
-            } else {
-                pwd = document.getElementById('pwdInput').value;
-                localStorage.setItem('vault_admin_pwd', pwd);
-            }
-            
-            try {
-                await loadFiles(false);
-                document.getElementById('loginView').classList.add('hidden');
-                document.getElementById('dashboardView').classList.remove('hidden');
-                document.getElementById('logoutBtn').classList.remove('hidden');
-                document.getElementById('pwdInput').value = '';
-                showToast("Vault Unlocked");
-            } catch (err) {
-                showToast(err.message, true);
-                localStorage.removeItem('vault_admin_pwd');
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('vault_admin_pwd');
-            document.getElementById('loginView').classList.remove('hidden');
-            document.getElementById('dashboardView').classList.add('hidden');
-            document.getElementById('editView').classList.add('hidden');
-            document.getElementById('logoutBtn').classList.add('hidden');
         }
 
         function filterSearch() {
@@ -191,7 +145,7 @@
         async function downloadFile(id) {
             try {
                 showToast("Preparing download...");
-                const res = await authFetch(`${API_URL}?id=${id}`);
+                const res = await apiFetch(`${API_URL}?id=${id}`);
                 const data = await res.json();
                 const blob = new Blob([data.content], { type: 'text/plain' });
                 const url = window.URL.createObjectURL(blob);
@@ -228,7 +182,7 @@
             if (manualRefresh) refreshBtn.innerHTML = '<i class="fa-solid fa-spinner spin"></i>';
 
             try {
-                const res = await authFetch(API_URL);
+                const res = await apiFetch(API_URL);
                 const blobs = await res.json();
                 
                 if (!Array.isArray(blobs) || blobs.length === 0) {
@@ -238,10 +192,7 @@
                 }
                 filterSearch();
             } catch (err) {
-                if (err.message !== "Invalid Password") {
-                    listEl.innerHTML = `<tr><td class="p-4 text-red-400 text-center"><i class="fa-solid fa-triangle-exclamation mr-2"></i> ${err.message}</td></tr>`;
-                }
-                throw err;
+                listEl.innerHTML = `<tr><td class="p-4 text-red-400 text-center"><i class="fa-solid fa-triangle-exclamation mr-2"></i> ${err.message}</td></tr>`;
             } finally {
                 if (manualRefresh) refreshBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i>';
             }
@@ -260,7 +211,7 @@
             
             reader.onload = async function(e) {
                 try {
-                    await authFetch(API_URL, {
+                    await apiFetch(API_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ filename: file.name, content: e.target.result })
@@ -293,7 +244,7 @@
         async function openEdit(id) {
             try {
                 showToast("Loading script...");
-                const res = await authFetch(`${API_URL}?id=${id}`);
+                const res = await apiFetch(`${API_URL}?id=${id}`);
                 const data = await res.json();
                 
                 document.getElementById('dashboardView').classList.add('hidden');
@@ -318,7 +269,7 @@
             btn.disabled = true;
             
             try {
-                await authFetch(API_URL, {
+                await apiFetch(API_URL, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id, filename, content })
@@ -340,7 +291,7 @@
             if(row) row.remove();
             
             try {
-                await authFetch(API_URL, { 
+                await apiFetch(API_URL, { 
                     method: 'DELETE', 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id }) 
@@ -353,9 +304,7 @@
         }
 
         window.onload = () => {
-            if (localStorage.getItem('vault_admin_pwd')) {
-                login(true);
-            }
+            loadFiles(true);
         };
     </script>
 </body>
