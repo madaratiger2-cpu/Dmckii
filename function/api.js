@@ -5,11 +5,17 @@ export default async (req) => {
     const headers = {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "x-admin-password, Content-Type",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0",
         "Surrogate-Control": "no-store"
     };
+
+    if (req.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers });
+    }
 
     try {
         const store = getStore("lua_scripts");
@@ -86,6 +92,7 @@ export default async (req) => {
         return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers });
 
     } catch (error) {
+        
         return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
     }
 };
