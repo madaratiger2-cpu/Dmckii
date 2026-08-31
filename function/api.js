@@ -1,6 +1,6 @@
 import { getStore } from "@netlify/blobs";
 
-export default async (req, context) => {
+export default async (req) => {
     const headers = {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
@@ -10,18 +10,22 @@ export default async (req, context) => {
         "Surrogate-Control": "no-store"
     };
 
-    const ADMIN_PASSWORD = "Harshdeep";
-
     try {
         const store = getStore("lua_scripts");
         const url = new URL(req.url);
         const method = req.method;
-        const id = url.searchParams.get("id");
-        const raw = url.searchParams.get("raw");
+        let rawId = url.searchParams.get("raw");
+        
+        if (!rawId) {
+            const pathParts = url.pathname.split('/').filter(Boolean);
+            if (pathParts.length >= 2 && pathParts[pathParts.length - 2] === 'raw') {
+                rawId = pathParts[pathParts.length - 1];
+            }
+        }
 
-        if (method === "GET" && raw) {
-            const content = await store.get(raw);
-            if (content === null) return new Response("Error: Script not found", { status: 404, headers });
+        if (method === "GET" && rawId) {
+            const content = await store.get(rawId);
+            if (content === null) return new Response("Error: Script not found", { status: 404 });
             
             return new Response(content, { 
                 status: 200, 
@@ -34,10 +38,12 @@ export default async (req, context) => {
             });
         }
 
-        const clientPassword = req.headers.get("x-admin-password");
-        if (clientPassword !== ADMIN_PASSWORD) {
+        const adminPass = req.headers.get("x-admin-password");
+        if (adminPass !== "Universe") {
             return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
         }
+
+        const id = url.searchParams.get("id");
 
         if (method === "GET" && id) {
             const res = await store.getWithMetadata(id);
@@ -58,11 +64,17 @@ export default async (req, context) => {
 
         const body = await req.json().catch(() => ({}));
 
-        if (method === "POST" || method === "PUT") {
-            const targetId = body.id || Math.random().toString(36).substring(2, 10);
+        if (method === "POST") {
+            const targetId = Math.random().toString(36).substring(2, 10);
             const filename = body.filename || `script_${targetId}.lua`;
             await store.set(targetId, body.content || "", { metadata: { filename } });
             return new Response(JSON.stringify({ id: targetId }), { status: 200, headers });
+        }
+
+        if (method === "PUT") {
+            if (!body.id) return new Response(JSON.stringify({ error: "Missing ID" }), { status: 400, headers });
+            await store.set(body.id, body.content || "", { metadata: { filename: body.filename } });
+            return new Response(JSON.stringify({ id: body.id }), { status: 200, headers });
         }
 
         if (method === "DELETE") {
@@ -73,6 +85,6 @@ export default async (req, context) => {
         return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers });
 
     } catch (error) {
-        return new Response(JSON.stringify({ error: "Backend Crash: " + error.message }), { status: 500, headers });
+        return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
     }
 };
