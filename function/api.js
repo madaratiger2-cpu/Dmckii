@@ -1,11 +1,9 @@
 import { getStore } from "@netlify/blobs";
 
 export default async (req) => {
-    
     const headers = {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "x-admin-password, Content-Type",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
         "Pragma": "no-cache",
@@ -43,11 +41,6 @@ export default async (req) => {
                     "Surrogate-Control": "no-store"
                 } 
             });
-        }
-
-        const adminPass = req.headers.get("x-admin-password");
-        if (adminPass !== "MrMadara") {
-            return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers });
         }
 
         const id = url.searchParams.get("id");
@@ -92,7 +85,6 @@ export default async (req) => {
         return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405, headers });
 
     } catch (error) {
-        
         return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
     }
 };
