@@ -30,8 +30,8 @@
 
     <div id="loginView" class="max-w-md mx-auto glass-panel p-8 rounded-xl shadow-xl mt-20">
         <h2 class="text-2xl font-bold mb-6 text-center text-white"><i class="fa-solid fa-lock text-cyan-400 mr-2"></i>Admin Access</h2>
-        <input type="password" id="pwdInput" placeholder="Enter Master Password" class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-3 mb-4 focus:outline-none focus:border-cyan-400 transition" onkeypress="if(event.key === 'Enter') login()">
-        <button onclick="login()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-lg font-bold transition shadow-lg shadow-cyan-500/30">Unlock Vault</button>
+        <input type="password" id="pwdInput" placeholder="Enter Master Password" class="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-4 py-3 mb-4 focus:outline-none focus:border-cyan-400 transition" onkeypress="if(event.key === 'Enter') login(false)">
+        <button onclick="login(false)" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white px-8 py-3 rounded-lg font-bold transition shadow-lg shadow-cyan-500/30">Unlock Vault</button>
     </div>
 
     <div id="dashboardView" class="max-w-5xl mx-auto space-y-6 hidden">
@@ -121,14 +121,26 @@
 
             if (res.status === 401) {
                 logout();
-                throw new Error("Unauthorized");
+                throw new Error("Invalid Password");
+            }
+            if (res.status === 404) {
+                throw new Error("API not deployed");
+            }
+            if (!res.ok) {
+                throw new Error(`Server Error ${res.status}`);
             }
             return res;
         }
 
-        async function login() {
-            const pwd = document.getElementById('pwdInput').value;
-            localStorage.setItem('vault_admin_pwd', pwd);
+        async function login(isAutoLogin) {
+            let pwd;
+            if (isAutoLogin) {
+                pwd = localStorage.getItem('vault_admin_pwd');
+            } else {
+                pwd = document.getElementById('pwdInput').value;
+                localStorage.setItem('vault_admin_pwd', pwd);
+            }
+            
             try {
                 await loadFiles(false);
                 document.getElementById('loginView').classList.add('hidden');
@@ -137,7 +149,7 @@
                 document.getElementById('pwdInput').value = '';
                 showToast("Vault Unlocked");
             } catch (err) {
-                showToast("Invalid Password", true);
+                showToast(err.message, true);
                 localStorage.removeItem('vault_admin_pwd');
             }
         }
@@ -226,8 +238,8 @@
                 }
                 filterSearch();
             } catch (err) {
-                if (err.message !== "Unauthorized") {
-                    listEl.innerHTML = `<tr><td class="p-4 text-red-400 text-center"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Error loading live data</td></tr>`;
+                if (err.message !== "Invalid Password") {
+                    listEl.innerHTML = `<tr><td class="p-4 text-red-400 text-center"><i class="fa-solid fa-triangle-exclamation mr-2"></i> ${err.message}</td></tr>`;
                 }
                 throw err;
             } finally {
@@ -342,7 +354,7 @@
 
         window.onload = () => {
             if (localStorage.getItem('vault_admin_pwd')) {
-                login();
+                login(true);
             }
         };
     </script>
